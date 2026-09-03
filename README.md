@@ -10,11 +10,13 @@
 
 - [Why this dataset?](#why-this-dataset)
 - [Download sample CSV](#download-sample)
+- [GitHub Pages preview](#github-pages)
 - [Sample vs full dataset](#sample-vs-full-dataset)
 - [Timeframes on GetData](#timeframes-on-getdata)
 - [Weekly updates](#weekly-updates)
 - [Data preview](#data-preview)
 - [Schema](#schema)
+- [Code examples](#code-examples)
 - [Download full data on getdata.finance](#download-full-data-on-getdata)
 
 ## Why this dataset?
@@ -25,11 +27,17 @@
 - Built for **backtesting**, **algorithmic trading** and **quantitative finance** workflows
 - **Weekly refresh** — [getdata.finance](https://getdata.finance) every **Saturday, 8am UTC+0**; GitHub `1m` sample updated in sync
 
-> **Sample on GitHub** · `US2000_1m.csv` (55,440 rows, `2026-07-07` -> `2026-09-02`). **Full archive on [getdata.finance](https://getdata.finance/datasets/us2000)** — **2,762,553** `1m` rows, **11 timeframes**, `2018-10-26` -> `2026-09-02`.
+> **Sample on GitHub** · `US2000_1m.csv` (55,440 rows, `2026-07-07` -> `2026-09-02`, 5.04 MB). **Full archive on [getdata.finance](https://getdata.finance/datasets/us2000)** — **2,762,553** `1m` rows, **11 timeframes**, `2018-10-26` -> `2026-09-02`.
 
 ## Download sample
 
-**[US2000_1m.csv](https://github.com/getdata-finance/us2000-1m-ohlcv-index-historical-data/blob/main/US2000_1m.csv)** on GitHub ([raw CSV](https://raw.githubusercontent.com/getdata-finance/us2000-1m-ohlcv-index-historical-data/main/US2000_1m.csv))
+**[US2000_1m.csv](https://github.com/getdata-finance/us2000-1m-ohlcv-index-historical-data/blob/main/US2000_1m.csv)** on GitHub ([raw CSV](https://raw.githubusercontent.com/getdata-finance/us2000-1m-ohlcv-index-historical-data/main/US2000_1m.csv)) · [GitHub Releases](https://github.com/getdata-finance/us2000-1m-ohlcv-index-historical-data/releases)
+
+## GitHub Pages
+
+Interactive chart & stats: **[https://getdata-finance.github.io/us2000-1m-ohlcv-index-historical-data/](https://getdata-finance.github.io/us2000-1m-ohlcv-index-historical-data/)**
+
+Full archive & live chart on getdata.finance: **[https://getdata.finance/datasets/us2000](https://getdata.finance/datasets/us2000)**
 
 ## Sample vs full dataset
 
@@ -38,6 +46,7 @@
 | Instrument | Russell 2000 · Index | Russell 2000 · Index |
 | Timeframes | `1m` (sample) | **11** — 1m · 3m · 5m · 15m · 30m · 1H · 4H · 12H · 1D · 3D · 1W |
 | 1m rows | 55,440 | **2,762,553** |
+| Size | 5.04 MB | full ZIP on [getdata.finance](https://getdata.finance/datasets/us2000) |
 | Period | `2026-07-07` -> `2026-09-02` | `2018-10-26` -> `2026-09-02` |
 | File | `US2000_1m.csv` | ZIP on [getdata.finance](https://getdata.finance/datasets/us2000) |
 | Coverage report | — | [US2000 coverage](https://getdata.finance/coverage/us2000) |
@@ -45,14 +54,18 @@
 
 ## Timeframes on GetData
 
-This GitHub repository ships a **`1m` evaluation sample** only. On **[getdata.finance](https://getdata.finance/datasets/us2000)**, each full asset archive is delivered as a ZIP with **11 gap-free OHLCV timeframes**:
+This GitHub repository ships a **`1m` evaluation sample** only. On **[getdata.finance](https://getdata.finance/datasets/us2000)**, each full asset archive is delivered as a ZIP with **11 gap-free OHLCV timeframes** (one CSV per timeframe):
 
-**1m** · **3m** · **5m** · **15m** · **30m** · **1H** · **4H** · **12H** · **1D** · **3D** · **1W**
+**1m · 3m · 5m · 15m · 30m · 1H · 4H · 12H · 1D · 3D · 1W**
+
+GitHub = `1m` sample · [getdata.finance](https://getdata.finance/datasets/us2000) = all **11** timeframes above for the same instrument.
 
 ## Weekly updates
 
-- **[getdata.finance](https://getdata.finance)** — Full datasets updated every Saturday, 8am UTC+0.
-- **GitHub (this repo)** — GitHub samples refreshed weekly, in sync with getdata.finance.
+- **[getdata.finance](https://getdata.finance)** — Full datasets are updated every Saturday, 8am UTC+0.
+- **GitHub (this repo)** — GitHub samples are refreshed weekly (every Saturday, 8am UTC+0), in sync with getdata.finance.
+
+When a new `1m` sample is published on GitHub, the README, chart preview and CSV reflect the latest week of data.
 
 ## Data preview
 
@@ -93,8 +106,59 @@ First and latest rows from the GitHub sample **`US2000_1m.csv`**:
 time,open,high,low,close,volume
 ```
 
+## Code examples
+
+### pandas
+
+```python
+import pandas as pd
+
+df = pd.read_csv('US2000_1m.csv', parse_dates=['time'])
+df.set_index('time', inplace=True)
+print(df.describe())
+print(df.resample('1h').agg({'open': 'first', 'high': 'max',
+                              'low': 'min', 'close': 'last', 'volume': 'sum'}).head())
+```
+
+### backtrader
+
+```python
+import backtrader as bt
+import pandas as pd
+
+df = pd.read_csv('US2000_1m.csv', parse_dates=['time'])
+df.set_index('time', inplace=True)
+
+class PandasData(bt.feeds.PandasData):
+    params = (('datetime', None), ('open', 'open'), ('high', 'high'),
+              ('low', 'low'), ('close', 'close'), ('volume', 'volume'))
+
+cerebro = bt.Cerebro()
+cerebro.adddata(PandasData(dataname=df))
+# cerebro.addstrategy(YourStrategy)
+# cerebro.run()
+```
+
+### vectorbt
+
+```python
+import pandas as pd
+import vectorbt as vbt
+
+df = pd.read_csv('US2000_1m.csv', parse_dates=['time'])
+close = df.set_index('time')['close']
+fast, slow = vbt.MA.run(close, 10), vbt.MA.run(close, 50)
+entries = fast.ma_crossed_above(slow)
+exits = fast.ma_crossed_below(slow)
+pf = vbt.Portfolio.from_signals(close, entries, exits, init_cash=10_000, freq='1min')
+print(pf.stats())
+```
+
 ## Download full data
 
-Full US2000 archive — 11 timeframes, gap-free, updated weekly:
+The complete **US2000** archive on **[getdata.finance](https://getdata.finance/datasets/us2000)** includes **11 OHLCV timeframes** (1m · 3m · 5m · 15m · 30m · 1H · 4H · 12H · 1D · 3D · 1W) — **2,762,553** rows at `1m`, plus all other timeframes in the same ZIP.
 
 **[-> Get the full US2000 dataset on getdata.finance](https://getdata.finance/datasets/us2000)**
+
+---
+*GetData · US2000 1m OHLCV sample on GitHub · Full historical data on [getdata.finance](https://getdata.finance/datasets/us2000)*
